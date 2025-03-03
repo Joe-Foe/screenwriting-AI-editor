@@ -89,4 +89,47 @@ body {
   color: #adb5bd;
   pointer-events: none;
   height: 0;
+}
+
+/* Add this to your existing CSS */
+.mention {
+  background: #e9ecef;
+  border-radius: 0.25rem;
+  color: #212529;
+  padding: 0.1rem 0.3rem;
+  font-weight: bold;
+}
+
+/* Updated styles for the mention dropdown */
+.items {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05), 0px 10px 20px rgba(0, 0, 0, 0.1);
+  color: black; /* Ensure text is black */
+  font-size: 0.9rem;
+  overflow: hidden;
+  padding: 0.2rem;
+  position: relative;
+  min-width: 180px; /* Make dropdown wider */
+  width: auto;
+}
+
+.item {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.3rem;
+  display: block;
+  margin: 0;
+  padding: 0.5rem;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  color: black; /* Ensure text is black */
+  font-weight: 500; /* Slightly bolder for better visibility */
+}
+
+.item.is-selected {
+  background-color: #e9ecef;
+  border-color: #e9ecef;
+  color: black; /* Keep text black when selected */
 } 

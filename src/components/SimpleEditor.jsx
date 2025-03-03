@@ -1,43 +1,185 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import Mention from '@tiptap/extension-mention'
 import './SimpleEditor.css'
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
+
+// This suggestion implementation is from the TipTap official docs
+import { ReactRenderer } from '@tiptap/react'
+import tippy from 'tippy.js'
+import 'tippy.js/dist/tippy.css'
+
+// Updated MentionList with keyboard navigation
+const MentionList = forwardRef((props, ref) => {
+  const [selectedIndex, setSelectedIndex] = useState(0)
+  
+  const selectItem = (index) => {
+    const item = props.items[index]
+    if (item) {
+      props.command({ id: item })
+    }
+  }
+
+  // Navigation handlers
+  const upHandler = () => {
+    setSelectedIndex((selectedIndex + props.items.length - 1) % props.items.length)
+  }
+
+  const downHandler = () => {
+    setSelectedIndex((selectedIndex + 1) % props.items.length)
+  }
+
+  const enterHandler = () => {
+    selectItem(selectedIndex)
+  }
+
+  // Reset selection when items change
+  useEffect(() => setSelectedIndex(0), [props.items])
+
+  // Define what happens on keyboard events
+  useImperativeHandle(ref, () => ({
+    onKeyDown: ({ event }) => {
+      if (event.key === 'ArrowUp') {
+        upHandler()
+        return true
+      }
+
+      if (event.key === 'ArrowDown') {
+        downHandler()
+        return true
+      }
+
+      if (event.key === 'Enter') {
+        enterHandler()
+        return true
+      }
+
+      return false
+    },
+  }))
+
+  return (
+    <div className="items">
+      {props.items.length ? (
+        props.items.map((item, index) => (
+          <button
+            className={`item ${index === selectedIndex ? 'is-selected' : ''}`}
+            key={index}
+            onClick={() => selectItem(index)}
+          >
+            {item}
+          </button>
+        ))
+      ) : (
+        <div className="item">No result</div>
+      )}
+    </div>
+  )
+})
 
 const SimpleEditor = () => {
-  // Initialize the editor with just StarterKit for basic functionality
+  const characters = [
+    'JOHN',
+    'JAMES',
+    'ALEX',
+    'FRANK',
+    'LYDIA'
+  ]
+
+  // This is the exact suggestion configuration from TipTap docs
   const editor = useEditor({
     extensions: [
       StarterKit,
+      Mention.configure({
+        HTMLAttributes: {
+          class: 'mention',
+        },
+        suggestion: {
+          items: ({ query }) => {
+            return characters.filter(item => 
+              item.toLowerCase().startsWith(query.toLowerCase())
+            ).slice(0, 5)
+          },
+          
+          render: () => {
+            let component
+            let popup
+            
+            return {
+              onStart: props => {
+                component = new ReactRenderer(MentionList, {
+                  props,
+                  editor: props.editor,
+                })
+                
+                popup = tippy('body', {
+                  getReferenceClientRect: props.clientRect,
+                  appendTo: () => document.body,
+                  content: component.element,
+                  showOnCreate: true,
+                  interactive: true,
+                  trigger: 'manual',
+                  placement: 'bottom-start',
+                })
+              },
+              
+              onUpdate(props) {
+                component.updateProps(props)
+                
+                popup[0].setProps({
+                  getReferenceClientRect: props.clientRect,
+                })
+              },
+              
+              onKeyDown(props) {
+                if (props.event.key === 'Escape') {
+                  popup[0].hide()
+                  return true
+                }
+                
+                return component.ref?.onKeyDown(props)
+              },
+              
+              onExit() {
+                popup[0].destroy()
+                component.destroy()
+              },
+            }
+          },
+        },
+      }),
     ],
     content: '<p></p>',
+    onUpdate: ({ editor }) => {
+      console.log("Editor content updated")
+    },
     autofocus: true,
   })
 
-  if (!editor) {
-    return null
-  }
+  useEffect(() => {
+    if (editor) {
+      console.log("Editor initialized")
+    }
+  }, [editor])
 
   // Handle screenplay formatting
   const formatAs = (type) => {
-    editor.chain().focus();
+    if (!editor) return;
     
-    // Apply different formatting based on screenplay element type
     switch(type) {
       case 'scene-heading':
-        // Scene headings are typically uppercase
         editor.chain().focus().setHeading({ level: 3 }).run();
         break;
       case 'action':
         editor.chain().focus().setParagraph().run();
         break;
       case 'character':
-        // Characters are typically uppercase and centered
         editor.chain().focus().setHeading({ level: 4 }).run();
         break;
       case 'dialogue':
         editor.chain().focus().setParagraph().run();
         break;
       case 'parenthetical':
-        // Parentheticals are typically in italics
         editor.chain().focus().setHeading({ level: 5 }).run();
         break;
       default:
@@ -45,50 +187,27 @@ const SimpleEditor = () => {
     }
   }
 
+  if (!editor) {
+    return null
+  }
+
   return (
     <div className="document-container">
       <div className="toolbar">
-        <button 
-          onClick={() => formatAs('scene-heading')}
-          className="screenplay-button"
-        >
+        <button onClick={() => formatAs('scene-heading')} className="screenplay-button">
           Scene Heading
         </button>
-        <button 
-          onClick={() => formatAs('action')}
-          className="screenplay-button"
-        >
+        <button onClick={() => formatAs('action')} className="screenplay-button">
           Action
         </button>
-        <button 
-          onClick={() => formatAs('character')}
-          className="screenplay-button"
-        >
+        <button onClick={() => formatAs('character')} className="screenplay-button">
           Character
         </button>
-        <button 
-          onClick={() => formatAs('dialogue')}
-          className="screenplay-button"
-        >
+        <button onClick={() => formatAs('dialogue')} className="screenplay-button">
           Dialogue
         </button>
-        <button 
-          onClick={() => formatAs('parenthetical')}
-          className="screenplay-button"
-        >
+        <button onClick={() => formatAs('parenthetical')} className="screenplay-button">
           Parenthetical
-        </button>
-        <button 
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          className="screenplay-button test-button"
-        >
-          TEST CHARACTER
-        </button>
-        <button 
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          className="screenplay-button retard-button"
-        >
-          RETARD CLAUDE
         </button>
       </div>
       <div className="document-editor">

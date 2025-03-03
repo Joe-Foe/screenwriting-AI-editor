@@ -1,0 +1,36 @@
+.mention {
+  background: #E8F5FE;
+  color: #0D8AE5;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.mention-popup {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 8px;
+  max-width: 200px;
+  z-index: 9999;
+  font-family: sans-serif;
+  font-size: 14px;
+}
+
+.mention-item {
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.mention-item:hover {
+  background: #E8F5FE;
+}
+
+/* Add this for better visibility of selected items */
+.mention-item.selected {
+  background: #D3EDFF;
+} 

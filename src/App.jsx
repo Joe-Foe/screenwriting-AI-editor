@@ -1,9 +1,13 @@
 import SimpleEditor from './components/SimpleEditor'
+import SimpleTextBox from './components/SimpleTextBox'
 import './App.css'
 
 function App() {
   return (
-    <SimpleEditor />
+    <>
+      <SimpleTextBox />
+      <SimpleEditor />
+    </>
   )
 }
 

@@ -78,83 +78,122 @@ const MentionList = forwardRef((props, ref) => {
 })
 
 const SimpleEditor = () => {
-  const characters = [
-    'JOHN',
-    'JAMES',
-    'ALEX',
-    'FRANK',
-    'LYDIA'
-  ]
+  // Start with an empty array - no defaults
+  const [characters, setCharacters] = useState([])
+  
+  // Track if localStorage has been loaded
+  const [dataLoaded, setDataLoaded] = useState(false)
+  
+  // Load characters from localStorage on mount
+  useEffect(() => {
+    // Check if localStorage has characters
+    const stored = localStorage.getItem('screenplay-characters')
+    console.log('Checking localStorage:', stored)
+    
+    if (stored) {
+      try {
+        const parsedCharacters = JSON.parse(stored)
+        console.log('Found characters in localStorage:', parsedCharacters)
+        setCharacters(parsedCharacters)
+      } catch (error) {
+        console.error('Error parsing localStorage characters:', error)
+      }
+    } else {
+      console.log('No characters found in localStorage')
+    }
+    
+    // Mark data as loaded
+    setDataLoaded(true)
+  }, [])
+
+  // Add debugging to check characters changes
+  useEffect(() => {
+    console.log('Characters state updated:', characters)
+  }, [characters])
 
   // This is the exact suggestion configuration from TipTap docs
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Mention.configure({
-        HTMLAttributes: {
-          class: 'mention',
-        },
-        suggestion: {
-          items: ({ query }) => {
-            return characters.filter(item => 
-              item.toLowerCase().startsWith(query.toLowerCase())
-            ).slice(0, 5)
+  // Only create the editor after data is loaded
+  const editor = useEditor(
+    {
+      extensions: [
+        StarterKit,
+        Mention.configure({
+          HTMLAttributes: {
+            class: 'mention',
           },
-          
-          render: () => {
-            let component
-            let popup
+          suggestion: {
+            items: ({ query }) => {
+              console.log('Mention query:', query)
+              console.log('Characters available:', characters)
+              
+              if (characters.length === 0) {
+                console.log('No characters available for mention')
+                return []
+              }
+              
+              const filtered = characters
+                .filter(item => item.toLowerCase().startsWith(query.toLowerCase()))
+              
+              console.log('Filtered characters:', filtered)
+              return filtered
+            },
             
-            return {
-              onStart: props => {
-                component = new ReactRenderer(MentionList, {
-                  props,
-                  editor: props.editor,
-                })
-                
-                popup = tippy('body', {
-                  getReferenceClientRect: props.clientRect,
-                  appendTo: () => document.body,
-                  content: component.element,
-                  showOnCreate: true,
-                  interactive: true,
-                  trigger: 'manual',
-                  placement: 'bottom-start',
-                })
-              },
+            render: () => {
+              let component
+              let popup
               
-              onUpdate(props) {
-                component.updateProps(props)
+              return {
+                onStart: props => {
+                  component = new ReactRenderer(MentionList, {
+                    props,
+                    editor: props.editor,
+                  })
+                  
+                  popup = tippy('body', {
+                    getReferenceClientRect: props.clientRect,
+                    appendTo: () => document.body,
+                    content: component.element,
+                    showOnCreate: true,
+                    interactive: true,
+                    trigger: 'manual',
+                    placement: 'bottom-start',
+                  })
+                },
                 
-                popup[0].setProps({
-                  getReferenceClientRect: props.clientRect,
-                })
-              },
-              
-              onKeyDown(props) {
-                if (props.event.key === 'Escape') {
-                  popup[0].hide()
-                  return true
-                }
+                onUpdate(props) {
+                  component.updateProps(props)
+                  
+                  popup[0].setProps({
+                    getReferenceClientRect: props.clientRect,
+                  })
+                },
                 
-                return component.ref?.onKeyDown(props)
-              },
-              
-              onExit() {
-                popup[0].destroy()
-                component.destroy()
-              },
-            }
+                onKeyDown(props) {
+                  if (props.event.key === 'Escape') {
+                    popup[0].hide()
+                    return true
+                  }
+                  
+                  return component.ref?.onKeyDown(props)
+                },
+                
+                onExit() {
+                  popup[0].destroy()
+                  component.destroy()
+                },
+              }
+            },
           },
-        },
-      }),
-    ],
-    content: '<p></p>',
-    onUpdate: ({ editor }) => {
-      console.log("Editor content updated")
+        }),
+      ],
+      content: '<p></p>',
+      onUpdate: ({ editor }) => {
+        console.log("Editor content updated")
+      },
+      autofocus: true,
     },
-    autofocus: true,
-  })
+    [dataLoaded]
+  )
 
   useEffect(() => {
     if (editor) {

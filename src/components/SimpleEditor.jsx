@@ -13,6 +13,11 @@ import 'tippy.js/dist/tippy.css'
 const MentionList = forwardRef((props, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
   
+  // Log the items received by MentionList
+  useEffect(() => {
+    console.log('MentionList received items:', props.items)
+  }, [props.items])
+  
   const selectItem = (index) => {
     const item = props.items[index]
     if (item) {
@@ -84,16 +89,22 @@ const SimpleEditor = () => {
   // Track if localStorage has been loaded
   const [dataLoaded, setDataLoaded] = useState(false)
   
-  // Load characters from localStorage on mount
-  useEffect(() => {
-    // Check if localStorage has characters
+  // Function to load characters from localStorage
+  const loadCharactersFromLocalStorage = () => {
     const stored = localStorage.getItem('screenplay-characters')
-    console.log('Checking localStorage:', stored)
+    console.log('Loading characters from localStorage:', stored)
     
     if (stored) {
       try {
         const parsedCharacters = JSON.parse(stored)
         console.log('Found characters in localStorage:', parsedCharacters)
+        
+        // Ensure we're getting all characters, including those with spaces
+        console.log('Character count:', parsedCharacters.length)
+        parsedCharacters.forEach((char, index) => {
+          console.log(`Character ${index}:`, char)
+        })
+        
         setCharacters(parsedCharacters)
       } catch (error) {
         console.error('Error parsing localStorage characters:', error)
@@ -102,8 +113,32 @@ const SimpleEditor = () => {
       console.log('No characters found in localStorage')
     }
     
-    // Mark data as loaded
     setDataLoaded(true)
+  }
+  
+  // Load characters from localStorage on mount
+  useEffect(() => {
+    loadCharactersFromLocalStorage()
+    
+    // Add event listener for storage changes
+    const handleStorageChange = (e) => {
+      if (e.key === 'screenplay-characters') {
+        console.log('localStorage changed, reloading characters')
+        loadCharactersFromLocalStorage()
+      }
+    }
+    
+    // Listen for changes to localStorage from other components
+    window.addEventListener('storage', handleStorageChange)
+    
+    // Also add a custom event listener for changes within the same window
+    window.addEventListener('screenplay-characters-updated', loadCharactersFromLocalStorage)
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('screenplay-characters-updated', loadCharactersFromLocalStorage)
+    }
   }, [])
 
   // Add debugging to check characters changes
@@ -131,8 +166,17 @@ const SimpleEditor = () => {
                 return []
               }
               
-              const filtered = characters
-                .filter(item => item.toLowerCase().startsWith(query.toLowerCase()))
+              // Log each character to check for any issues
+              characters.forEach((char, index) => {
+                console.log(`Character ${index} for filtering:`, char)
+              })
+              
+              // Filter characters that start with the query (case insensitive)
+              const filtered = characters.filter(item => {
+                const matches = item.toLowerCase().startsWith(query.toLowerCase())
+                console.log(`Character "${item}" matches query "${query}": ${matches}`)
+                return matches
+              })
               
               console.log('Filtered characters:', filtered)
               return filtered
@@ -192,7 +236,7 @@ const SimpleEditor = () => {
       },
       autofocus: true,
     },
-    [dataLoaded]
+    [dataLoaded, characters] // Add characters as a dependency to recreate the editor when characters change
   )
 
   useEffect(() => {

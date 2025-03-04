@@ -2,7 +2,7 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Mention from '@tiptap/extension-mention'
 import './SimpleEditor.css'
-import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
+import { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react'
 
 // This suggestion implementation is from the TipTap official docs
 import { ReactRenderer } from '@tiptap/react'
@@ -21,7 +21,61 @@ const MentionList = forwardRef((props, ref) => {
   const selectItem = (index) => {
     const item = props.items[index]
     if (item) {
-      props.command({ id: item })
+      // Check if this is the "Add name" option
+      if (item.startsWith('✚ Add:')) {
+        // Extract the name part from the option
+        const newName = item.replace('✚ Add:', '').trim().toUpperCase()
+        
+        // Add it to localStorage
+        addNameToLocalStorage(newName, () => {
+          // After adding to localStorage and updating the list, insert the mention
+          props.command({ id: newName })
+        })
+      } else {
+        props.command({ id: item })
+      }
+    }
+  }
+  
+  // Updated function to add name to localStorage with a callback
+  const addNameToLocalStorage = (newName, callback) => {
+    if (!newName) return
+    
+    // Get current characters from localStorage
+    const stored = localStorage.getItem('screenplay-characters')
+    let characters = []
+    
+    if (stored) {
+      try {
+        characters = JSON.parse(stored)
+      } catch (error) {
+        console.error('Error parsing localStorage characters:', error)
+      }
+    }
+    
+    // Check if character already exists (case insensitive)
+    const nameExists = characters.some(
+      name => name.toLowerCase() === newName.toLowerCase()
+    )
+    
+    if (!nameExists) {
+      characters.push(newName)
+      
+      // Save back to localStorage
+      localStorage.setItem('screenplay-characters', JSON.stringify(characters))
+      console.log(`Added new character: ${newName}`)
+      
+      // Dispatch event to update the editor
+      window.dispatchEvent(new Event('screenplay-characters-updated'))
+      
+      // Call the callback after adding the name
+      if (callback) {
+        // Small timeout to ensure state is updated first
+        setTimeout(callback, 10)
+      }
+    } else {
+      // If name already exists, still call the callback
+      if (callback) callback()
     }
   }
 
@@ -68,7 +122,7 @@ const MentionList = forwardRef((props, ref) => {
       {props.items.length ? (
         props.items.map((item, index) => (
           <button
-            className={`item ${index === selectedIndex ? 'is-selected' : ''}`}
+            className={`item ${index === selectedIndex ? 'is-selected' : ''} ${item.startsWith('✚ Add:') ? 'add-item' : ''}`}
             key={index}
             onClick={() => selectItem(index)}
           >
@@ -85,6 +139,9 @@ const MentionList = forwardRef((props, ref) => {
 const SimpleEditor = () => {
   // Start with an empty array - no defaults
   const [characters, setCharacters] = useState([])
+  
+  // Use a ref to store the current characters so the mention extension can access them dynamically
+  const charactersRef = useRef([])
   
   // Track if localStorage has been loaded
   const [dataLoaded, setDataLoaded] = useState(false)
@@ -106,11 +163,13 @@ const SimpleEditor = () => {
         })
         
         setCharacters(parsedCharacters)
+        charactersRef.current = parsedCharacters
       } catch (error) {
         console.error('Error parsing localStorage characters:', error)
       }
     } else {
       console.log('No characters found in localStorage')
+      charactersRef.current = []
     }
     
     setDataLoaded(true)
@@ -141,8 +200,9 @@ const SimpleEditor = () => {
     }
   }, [])
 
-  // Add debugging to check characters changes
+  // Update ref when characters state changes
   useEffect(() => {
+    charactersRef.current = characters
     console.log('Characters state updated:', characters)
   }, [characters])
 
@@ -158,27 +218,23 @@ const SimpleEditor = () => {
           },
           suggestion: {
             items: ({ query }) => {
+              // Use the current value from the ref instead of the state
+              const currentCharacters = charactersRef.current
               console.log('Mention query:', query)
-              console.log('Characters available:', characters)
-              
-              if (characters.length === 0) {
-                console.log('No characters available for mention')
-                return []
-              }
-              
-              // Log each character to check for any issues
-              characters.forEach((char, index) => {
-                console.log(`Character ${index} for filtering:`, char)
-              })
+              console.log('Characters available (from ref):', currentCharacters)
               
               // Filter characters that start with the query (case insensitive)
-              const filtered = characters.filter(item => {
-                const matches = item.toLowerCase().startsWith(query.toLowerCase())
-                console.log(`Character "${item}" matches query "${query}": ${matches}`)
-                return matches
-              })
+              const filtered = currentCharacters.filter(item => 
+                item.toLowerCase().startsWith(query.toLowerCase())
+              )
               
               console.log('Filtered characters:', filtered)
+              
+              // If we have a query and no matches, add an option to create a new character
+              if (query && query.trim() && filtered.length === 0) {
+                return [`✚ Add: ${query.trim()}`]
+              }
+              
               return filtered
             },
             
@@ -236,7 +292,7 @@ const SimpleEditor = () => {
       },
       autofocus: true,
     },
-    [dataLoaded, characters] // Add characters as a dependency to recreate the editor when characters change
+    [dataLoaded] // Only depend on dataLoaded, not characters
   )
 
   useEffect(() => {

@@ -132,4 +132,16 @@ body {
   background-color: #e9ecef;
   border-color: #e9ecef;
   color: black; /* Keep text black when selected */
+}
+
+/* Add styling for the add item option in the mention dropdown */
+.add-item {
+  background-color: #e6f7ff;
+  border-left: 3px solid #1890ff;
+  color: #1890ff;
+  font-weight: bold;
+}
+
+.add-item:hover {
+  background-color: #bae7ff;
 } 
